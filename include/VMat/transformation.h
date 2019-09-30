@@ -1,11 +1,11 @@
 #ifndef TRANSFORMATION_H_
 #define TRANSFORMATION_H_
 #include <iostream>
+#include <cstring>
 
 #include "geometry.h"
 #include "numeric.h"
 
-//#include "common.h"
 
 
 namespace  ysl
