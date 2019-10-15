@@ -88,6 +88,12 @@ namespace ysl {
 		return(n&(n - 1)) == 0;
 	}
 
+	template<typename T>
+	T Align(T val, T align)
+	{
+		return (val+(align-1)) & (~(align-1));
+	}
+
 	inline
 		Float
 		Lerp(Float t, Float v1, Float v2)
@@ -169,6 +175,8 @@ namespace ysl {
 	{
 		return ysl::Point2i(linear%dim, linear / dim);
 	}
+
+	
 
 
 }
