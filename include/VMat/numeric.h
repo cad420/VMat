@@ -166,7 +166,7 @@ namespace ysl {
 		Dim(std::size_t linear, const ysl::Size2 & dim)
 	{
 		const auto plane = dim.x*dim.y;
-		return Point3i(linear % dim.x, (linear%plane) / dim.y, linear / plane);
+		return Point3i(linear % dim.x, (linear%plane) / dim.x, linear / plane);
 	}
 
 	inline
