@@ -9,7 +9,7 @@
 #include "vmattype.h"
 
 
-namespace ysl
+namespace vm
 {
 
 	template<typename T>

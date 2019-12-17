@@ -3,7 +3,7 @@
 
 #include <limits>
 
-namespace ysl
+namespace vm
 {
 	using Float = float;
 	constexpr Float Pi = 3.14159265358979323846;

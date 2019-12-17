@@ -8,7 +8,7 @@
 
 
 
-namespace  ysl
+namespace  vm
 {
 	struct Matrix4x4;
 

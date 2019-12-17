@@ -9,7 +9,7 @@
 	* Sample Functions
 */
 
-namespace ysl
+namespace vm
 {
 
 	inline
