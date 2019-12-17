@@ -7,7 +7,7 @@
 /*
 *
 */
-namespace ysl {
+namespace vm {
 
 	template<typename T, typename U, typename V> inline
 	T
@@ -162,18 +162,18 @@ namespace ysl {
 	}
 
 	inline
-		ysl::Point3i
-		Dim(std::size_t linear, const ysl::Size2 & dim)
+		vm::Point3i
+		Dim(std::size_t linear, const vm::Size2 & dim)
 	{
 		const auto plane = dim.x*dim.y;
 		return Point3i(linear % dim.x, (linear%plane) / dim.x, linear / plane);
 	}
 
 	inline
-		ysl::Point2i
+		vm::Point2i
 		Dim(std::size_t linear, std::size_t dim)
 	{
-		return ysl::Point2i(linear%dim, linear / dim);
+		return vm::Point2i(linear%dim, linear / dim);
 	}
 
 	
