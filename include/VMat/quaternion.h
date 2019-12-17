@@ -13,7 +13,7 @@
 #endif
 
 
-namespace ysl
+namespace vm
 {
 	class Quaternion
 	{
