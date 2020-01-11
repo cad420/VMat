@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cmath>
 #include <algorithm>
+#include <type_traits>
 
 #include "vmattype.h"
 
@@ -76,11 +77,38 @@ class Vector2
 public:
 	T x, y;
 	constexpr Vector2() :
-	  x( 0 ),
-	  y( 0 ) {}
-	constexpr Vector2( const T &_x, const T &_y ) :
-	  x( _x ),
-	  y( _y ) {}
+	  x( T() ),
+	  y( T() )
+	{
+		assert( !HasNaN() );
+	}
+	constexpr Vector2( const T &x, const T &y ) :
+	  x( x ),
+	  y( y )
+	{
+		assert( !HasNaN() );
+	}
+	explicit constexpr Vector2( const T &a ) :
+	  x( a ),
+	  y( a )
+	{
+		assert( !HasNaN() );
+	}
+
+	explicit constexpr Vector2( const Vector3<T> &v ) :
+	  x( v.x ),
+	  y( v.y )
+	{
+		assert( !HasNaN() );
+	}
+
+	explicit constexpr Vector2( const Vector4<T> &v ) :
+	  x( v.x ),
+	  y( v.y )
+	{
+		assert( !HasNaN() );
+	}
+
 	bool HasNaN() const
 	{
 		return IsNaN( x ) || IsNaN( y );
@@ -119,6 +147,7 @@ public:
 		y -= v.y;
 		return *this;
 	}
+
 	template <typename U>
 	Vector2<T> operator/( const U &s ) const
 	{
@@ -136,8 +165,26 @@ public:
 		y *= inv;
 		return *this;
 	}
+
 	template <typename U>
-	Vector2<T> operator*( const U &s )
+	Vector2<decltype( T{} / U{} )> operator/( const Vector2<U> &s ) const
+	{
+		assert( !s.HasNaN() );
+		return Vector2<decltype( T{} / U{} )>( x / s.x, y / s.y );
+	}
+
+	template <typename U>
+	Vector2<T> &operator/=( const Vector2<U> &s )
+	{
+		assert( !s.HasNaN() );
+		x /= s.x;
+		y /= s.y;
+		return *this;
+	}
+
+	template <typename U>
+	Vector2<T>
+	  operator*( const U &s )
 	{
 		assert( !IsNaN( s ) );
 		return Vector2<T>( s * x, s * y );
@@ -149,6 +196,22 @@ public:
 		assert( !IsNaN( s ) );
 		x *= s;
 		y *= s;
+		return *this;
+	}
+
+	template <typename U>
+	Vector2<decltype( T{} / U{} )> operator*( const Vector2<U> &s )
+	{
+		assert( !s.HasNaN() );
+		return Vector2<decltype( T{} / U{} )>( s.x * x, s.y * y );
+	}
+
+	template <typename U>
+	Vector2<T> &operator*=( const Vector2<U> &s )
+	{
+		assert( !s.HasNaN() );
+		x *= s.x;
+		y *= s.y;
 		return *this;
 	}
 
@@ -218,7 +281,10 @@ public:
 		return &x;
 	}
 
-	T Prod() const { return x * y; }
+	typename std::conditional<std::is_integral<T>::value, size_t, Float>::type Prod() const
+	{
+		return static_cast<typename std::conditional<std::is_integral<T>::value, size_t, Float>::type>( x ) * y;
+	}
 
 	template <typename X>
 	friend class Point2;  //Vector2D can be accessed by all instances of Point2D
@@ -240,29 +306,32 @@ class Point2
 public:
 	T x, y;
 	constexpr Point2() :
-	  x( 0 ),
-	  y( 0 ) {}
+	  x( T() ),
+	  y( T() ) {}
 	constexpr Point2( const T &x, const T &y ) :
 	  x( x ),
 	  y( y )
 	{
 		assert( !HasNaN() );
 	}
-	//  explicit Point2D(const Point2D<T> & v) :xp(v.xp), yp(v.yp)
-	//  {
-	//assert(!HasNaN());
-	//  }
+
+	constexpr Point2( const T &a ) :
+	  x( a ),
+	  y( a )
+	{
+	}
+
+	constexpr Point2( const Point3<T> &p ) :
+	  x( p.x ),
+	  y( p.y )
+	{
+		assert( !HasNaN() );
+	}
 
 	bool HasNaN() const
 	{
 		return IsNaN( x ) || IsNaN( y );
 	}
-
-	//template<typename U>
-	//explicit operator Vector2<U>()const
-	//{
-	//	return Vector2<U>(x, y);
-	//}
 
 	constexpr Point2<T> operator+( const Vector2<T> &v ) const
 	{
@@ -309,6 +378,7 @@ public:
 		y -= v.y;
 		return *this;
 	}
+
 	template <typename U>
 	Point2<T> operator*( const U &s )
 	{
@@ -324,22 +394,41 @@ public:
 		y *= s;
 		return *this;
 	}
-	template <typename U>
-	Point2<T> operator/( const U &s ) const
-	{
-		assert( !IsNaN( s ) );
-		const Float inv = static_cast<Float>( 1 ) / s;
-		return Point2<T>( x * inv, y * inv );
-	}
-	template <typename U>
-	Point2<T> &operator/=( const U &s )
-	{
-		assert( !IsNaN( s ) );
-		const Float inv = static_cast<Float>( 1 ) / s;
-		x *= inv;
-		y *= inv;
-		return *this;
-	}
+
+	//template <typename U>
+	//Point2<T> operator/( const U &s ) const
+	//{
+	//	assert( !IsNaN( s ) );
+	//	const Float inv = static_cast<Float>( 1 ) / s;
+	//	return Point2<T>( x * inv, y * inv );
+	//}
+
+	//template <typename U>
+	//Point2<T> operator/( const Point2<U> &s ) const
+	//{
+	//	assert( !s.HasNaN() );
+	//	return Point2<T>( x / s.x, y / s.y );
+	//}
+
+	//template <typename U>
+	//Point2<T> &operator/=( const U &s )
+	//{
+	//	assert( !IsNaN( s ) );
+	//	const Float inv = static_cast<Float>( 1 ) / s;
+	//	x *= inv;
+	//	y *= inv;
+	//	return *this;
+	//}
+
+	//template <typename U>
+	//Point2<T> &operator/=( const Point2<U> &s )
+	//{
+	//	assert( !IsNaN( s ) );
+	//	x /= s.x;
+	//	y /= s.y;
+	//	return *this;
+	//}
+
 	const T &operator[]( int i ) const
 	{
 		assert( i >= 0 && i < 2 );
@@ -391,9 +480,9 @@ std::ostream &operator<<( std::ostream &os, const Point2<T> &p )
 }
 
 template <typename T, typename U>
-inline Point2<T> operator*( const U &s, const Point2<T> &v )
+Point2<T> operator*( const U &s, const Point2<T> &v )
 {
-	return Point2<T>( s * v.x(), s * v.y() );
+	return Point2<T>( s * v.x, s * v.y );
 }
 
 template <typename T>
@@ -402,15 +491,39 @@ class Vector3
 public:
 	T x, y, z;
 	constexpr Vector3() :
-	  x( 0 ),
-	  y( 0 ),
-	  z( 0 ) {}
+	  x( T() ),
+	  y( T() ),
+	  z( T() ) {}
 	constexpr Vector3( const T &x, const T &y, const T &z ) :
 	  x( x ),
 	  y( y ),
 	  z( z )
 	{
-		//assert(!HasNaN());
+		assert( !HasNaN() );
+	}
+
+	constexpr Vector3( const Vector2<T> &v, const T &a ) :
+	  x( v.x ),
+	  y( v.y ),
+	  z( a )
+	{
+		assert( !HasNaN() );
+	}
+
+	explicit constexpr Vector3( const T &a ) :
+	  x( a ),
+	  y( a ),
+	  z( a )
+	{
+		assert( !HasNaN() );
+	}
+
+	explicit constexpr Vector3( const Vector4<T> &v ) :
+	  x( v.x ),
+	  y( v.y ),
+	  z( v.z )
+	{
+		assert( !HasNaN() );
 	}
 
 	//constexpr Vector3(const Normal3<T> & n):x(n.x),y(n.y),z(n.z){}
@@ -422,7 +535,7 @@ public:
 
 	constexpr Vector3<T> operator+( const Vector3<T> &v ) const
 	{
-		//assert(!v.HasNaN());
+		assert( !v.HasNaN() );
 		return Vector3<T>( x + v.x, y + v.y, z + v.z );
 	}
 
@@ -434,7 +547,7 @@ public:
 
 	constexpr Vector3<T> &operator+=( const Vector3<T> &v )
 	{
-		//assert(!v.HasNaN());
+		assert( !v.HasNaN() );
 		x += v.x;
 		y += v.y;
 		z += v.z;
@@ -442,13 +555,13 @@ public:
 	}
 	constexpr Vector3<T> operator-( const Vector3<T> &v ) const
 	{
-		//assert(!v.HasNaN());
+		assert( !v.HasNaN() );
 		return Vector3<T>( x - v.x, y - v.y, z - v.z );
 	}
 
 	constexpr Vector3<T> &operator-=( const Vector3<T> &v )
 	{
-		//assert(!v.HasNaN());
+		assert( !v.HasNaN() );
 		x -= v.x;
 		y -= v.y;
 		z -= v.z;
@@ -513,6 +626,16 @@ public:
 		return *this;
 	}
 
+	constexpr bool operator==( const Vector3<T> &v ) const
+	{
+		return x == v.x && y == v.y && z == v.z;
+	}
+
+	constexpr bool operator!=( const Vector3<T> &v ) const
+	{
+		return !( *this == v );
+	}
+
 	const T &operator[]( int i ) const
 	{
 		assert( i >= 0 && i < 3 );
@@ -538,7 +661,11 @@ public:
 		};
 	}
 
-	T Prod() const { return x * y * z; }
+	typename std::conditional<std::is_integral<T>::value, size_t, Float>::type Prod() const
+	{
+		using type = typename std::conditional<std::is_integral<T>::value, size_t, Float>::type;
+		return type( x ) * type( y ) * type( z );
+	}
 
 	constexpr Float LengthSquared() const { return x * x + y * y + z * z; }
 
@@ -575,9 +702,8 @@ public:
 
 	constexpr Point3<T> ToPoint3() const
 	{
-		return Point3<T>(x,y,z);
+		return Point3<T>( x, y, z );
 	}
-	
 };
 
 template <typename T>
@@ -619,11 +745,26 @@ public:
 		assert( !HasNaN() );
 	}
 
+	explicit constexpr Point3( const T &a ) :
+	  x( a ),
+	  y( a ),
+	  z( a )
+	{
+		assert( !HasNaN() );
+	}
+
+	constexpr Point3( const Point2<T> &p, const T &a ) :
+	  x( p.x ),
+	  y( p.y ),
+	  z( a )
+	{
+		assert( !HasNaN() );
+	}
+
 	bool HasNaN() const
 	{
 		return IsNaN( x ) || IsNaN( y ) || IsNaN( z );
 	}
-	//template<typename U> explicit Point3D(const Point3D<U> & p) :x(T(p.x)), y(T(p.y)), z(T(p.z)) {}
 
 	template <typename U>
 	explicit operator Vector3<U>() const
@@ -735,6 +876,16 @@ public:
 		return *this;
 	}
 
+	constexpr bool operator==( const Point3<T> &p ) const
+	{
+		return x == p.x && y == p.y && z == p.z;
+	}
+
+	constexpr bool operator!=( const Point3<T> &p ) const
+	{
+		return !( *this == p );
+	}
+
 	const T &operator[]( int i ) const
 	{
 		assert( i >= 0 && i < 3 );
@@ -754,7 +905,7 @@ public:
 
 	constexpr Vector3<T> ToVector3() const
 	{
-		return Vector3<T>(x,y,z);
+		return Vector3<T>( x, y, z );
 	}
 
 	Vector3<T> Abs( const Vector3<T> &v )
@@ -791,14 +942,14 @@ class Normal3
 {
 public:
 	T x, y, z;
-	explicit Normal3<T>( const Vector3<T> &v ) :
+	explicit constexpr Normal3<T>( const Vector3<T> &v ) :
 	  x( v.x ),
 	  y( v.y ),
 	  z( v.z )
 	{
 		assert( !v.HasNaN() );
 	}
-	Normal3<T>( T x, T y, T z ) :
+	constexpr Normal3<T>( T x, T y, T z ) :
 	  x( x ),
 	  y( y ),
 	  z( z )
@@ -887,6 +1038,16 @@ public:
 		return *this;
 	}
 
+	constexpr bool operator==( const Normal3<T> &n ) const
+	{
+		return x == n.x && y == n.y && z == n.z;
+	}
+
+	constexpr bool operator!=( const Normal3<T> &n ) const
+	{
+		return !( *this == n );
+	}
+
 	const T &operator[]( int i ) const
 	{
 		assert( i >= 0 && i < 3 );
@@ -941,29 +1102,71 @@ public:
 	  x( 0 ),
 	  y( 0 ),
 	  z( 0 ),
-	  w( 0 ) {}
+	  w( 0 )
+	{
+		assert( !HasNaN() );
+	}
 	constexpr Vector4( const T &x, const T &y, const T &z, const T &w ) :
 	  x( x ),
 	  y( y ),
 	  z( z ),
-	  w( w ) {}
+	  w( w )
+	{
+		assert( !HasNaN() );
+	}
 
-	template <typename U>
-	constexpr Vector4( const Vector3<U> &v ) :
+	explicit constexpr Vector4( const Vector3<T> &v ) :
 	  x( v.x ),
 	  y( v.y ),
 	  z( v.z ),
 	  w( 0.0 )
 	{
+		assert( !HasNaN() );
 	}
 
-	template <typename U>
-	constexpr Vector4( const Vector2<U> &v ) :
+	explicit constexpr Vector4( const Vector2<T> &v ) :
 	  x( v.x ),
 	  y( v.y ),
 	  z( 0.0 ),
 	  w( 0.0 )
 	{
+		assert( !HasNaN() );
+	}
+
+	constexpr Vector4( const Vector3<T> &v, const T &a ) :
+	  x( v.x ),
+	  y( v.y ),
+	  z( v.z ),
+	  w( a )
+	{
+		assert( !HasNaN() );
+	}
+
+	constexpr Vector4( const Vector2<T> &v, const T &a1 ) :
+	  x( v.x ),
+	  y( v.y ),
+	  z( a1 ),
+	  w( T() )
+	{
+		assert( !HasNaN() );
+	}
+
+	constexpr Vector4( const Vector2<T> &v, const T &a1, const T &a2 ) :
+	  x( v.x ),
+	  y( v.y ),
+	  z( a1 ),
+	  w( a2 )
+	{
+		assert( !HasNaN() );
+	}
+
+	explicit constexpr Vector4( const T &a ) :
+	  x( a ),
+	  y( a ),
+	  z( a ),
+	  w( a )
+	{
+		assert( !HasNaN() );
 	}
 
 	bool HasNaN() const
@@ -979,7 +1182,7 @@ public:
 
 	constexpr Vector4<T> &operator+=( const Vector4<T> &v )
 	{
-		//assert(!v.HasNaN());
+		assert( !v.HasNaN() );
 		x += v.x;
 		y += v.y;
 		z += v.z;
@@ -989,13 +1192,13 @@ public:
 
 	constexpr Vector4<T> operator-( const Vector4<T> &v ) const
 	{
-		//assert(!v.HasNaN());
+		assert( !v.HasNaN() );
 		return Vector4<T>( x - v.x, y - v.y, z - v.z, w - v.w );
 	}
 
 	constexpr Vector4<T> &operator-=( const Vector4<T> &v )
 	{
-		//assert(!v.HasNaN());
+		assert( !v.HasNaN() );
 		x -= v.x;
 		y -= v.y;
 		z -= v.z;
@@ -1042,13 +1245,13 @@ public:
 
 	constexpr Vector4<T> operator*( const Float s ) const
 	{
-		//assert(!IsNaN(s));
+		assert( !IsNaN( s ) );
 		return Vector4<T>( s * x, s * y, s * z, s * w );
 	}
 
 	constexpr Vector4<T> &operator*=( const Float s )
 	{
-		//assert(!IsNaN(s));
+		assert( !IsNaN( s ) );
 		x *= s;
 		y *= s;
 		z *= s;
@@ -1075,6 +1278,16 @@ public:
 		return *this;
 	}
 
+	constexpr bool operator==( const Vector4<T> &v ) const
+	{
+		return x == v.x && y == v.y && z == v.z && w == v.w;
+	}
+
+	constexpr bool operator!=( const Vector4<T> &v ) const
+	{
+		return !( *this == v );
+	}
+
 	const T &operator[]( int i ) const
 	{
 		assert( i >= 0 && i < 4 );
@@ -1091,11 +1304,21 @@ public:
 		return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w;
 	}
 
-	T Prod() const { return x * y * z * w; }
+	typename std::conditional<std::is_integral<T>::value, size_t, Float>::type Prod() const
+	{
+		using type = typename std::conditional<std::is_integral<T>::value, size_t, Float>::type;
+		return type( x ) * type( y ) * type( z ) *type(w);
+	}
 
-	constexpr Float LengthSquared() const { return x * x + y * y + z * z + w * w; }
+	constexpr Float LengthSquared() const
+	{
+		return x * x + y * y + z * z + w * w;
+	}
 
-	constexpr Float Length() const { return std::sqrt( LengthSquared() ); }
+	constexpr Float Length() const
+	{
+		return std::sqrt( LengthSquared() );
+	}
 
 	constexpr Vector4<T> Normalized() const
 	{
