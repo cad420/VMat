@@ -395,40 +395,6 @@ public:
 		return *this;
 	}
 
-	//template <typename U>
-	//Point2<T> operator/( const U &s ) const
-	//{
-	//	assert( !IsNaN( s ) );
-	//	const Float inv = static_cast<Float>( 1 ) / s;
-	//	return Point2<T>( x * inv, y * inv );
-	//}
-
-	//template <typename U>
-	//Point2<T> operator/( const Point2<U> &s ) const
-	//{
-	//	assert( !s.HasNaN() );
-	//	return Point2<T>( x / s.x, y / s.y );
-	//}
-
-	//template <typename U>
-	//Point2<T> &operator/=( const U &s )
-	//{
-	//	assert( !IsNaN( s ) );
-	//	const Float inv = static_cast<Float>( 1 ) / s;
-	//	x *= inv;
-	//	y *= inv;
-	//	return *this;
-	//}
-
-	//template <typename U>
-	//Point2<T> &operator/=( const Point2<U> &s )
-	//{
-	//	assert( !IsNaN( s ) );
-	//	x /= s.x;
-	//	y /= s.y;
-	//	return *this;
-	//}
-
 	const T &operator[]( int i ) const
 	{
 		assert( i >= 0 && i < 2 );
@@ -596,13 +562,13 @@ public:
 	template <typename U>
 	constexpr Vector3<T> operator*( const U &s ) const
 	{
-		//assert(!IsNaN(s));
+		assert(!IsNaN(s));
 		return Vector3<T>( s * x, s * y, s * z );
 	}
 	template <typename U>
 	constexpr Vector3<T> &operator*=( const U &s )
 	{
-		//assert(!IsNaN(s));
+		assert(!IsNaN(s));
 		x *= s;
 		y *= s;
 		z *= s;
