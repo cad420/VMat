@@ -55,6 +55,23 @@ namespace vm
 	}
 
 	inline
+	Point2f concentricDiskSample(const Point2f & p){
+		const auto offset = 2.f * p - Vec2f(1,1);
+		if(offset.x == 0 && offset.y == 0)return Point2f(0.f,0.f);
+
+		Float theta,r;
+		if(std::abs(offset.x) > std::abs(offset.y)){
+			r = offset.x;
+			theta = (Pi/4.f) * (offset.y / offset.x);
+		}else{
+			r = offset.y;
+			theta = (Pi/2.f) - (Pi/4.f) * (offset.x/ offset.y);
+		}
+
+		return r * Point2f(std::cos(theta),std::sin(theta));
+	}
+
+	inline
 	Vector3f
 	cosineSampleHemiSphereWithShiness(const Point2f &p, Float shiness)
 	{
