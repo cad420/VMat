@@ -1583,6 +1583,7 @@ public:
 	Float tMax;
 	Float Time;
 	bool negDirection[ 3 ];
+	Ray()=default;
 	Ray( const Vector3f &d, const Point3f &o, Float t = ( std::numeric_limits<float>::max )() ,Float time = 0.f) :
 	  o( o ),
 	  d( d ),
