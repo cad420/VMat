@@ -1581,11 +1581,13 @@ public:
 	Point3f o;
 	Vector3f d;
 	Float tMax;
+	Float Time;
 	bool negDirection[ 3 ];
-	Ray( const Vector3f &d, const Point3f &o, Float t = ( std::numeric_limits<float>::max )() ) :
+	Ray( const Vector3f &d, const Point3f &o, Float t = ( std::numeric_limits<float>::max )() ,Float time = 0.f) :
 	  o( o ),
 	  d( d ),
-	  tMax( t )
+	  tMax( t ),
+	  Time(time)
 	{
 		negDirection[ 0 ] = d.x < 0;
 		negDirection[ 1 ] = d.y < 0;
@@ -1600,6 +1602,25 @@ public:
 	friend class Triangle;
 	friend class Shape;
 	friend class BVHTreeAccelerator;
+};
+
+class DifferentialRay:public Ray{
+	public:
+	DifferentialRay(const Ray & ray):Ray(ray),Differential(false){
+
+	}
+	DifferentialRay(const Vec3f & d ,const Point3f & o,Float t = ((std::numeric_limits<Float>::max)()),Float time = 0.f):Ray(d,o,t,time),Differential(false){
+		
+	}
+	void ScaleDifferentials(Float s){
+		Ox = o + (Ox - o) * s;
+		Oy = o + (Oy - o) * s;
+		Dx = d + (Dx - d) * s;
+		Dy = d + (Dy - d) * s;
+	}
+	bool Differential = false;
+	Point3f Ox,Oy;
+	Vec3f Dx,Dy;
 };
 
 /**
