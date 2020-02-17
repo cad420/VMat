@@ -1606,6 +1606,7 @@ public:
 
 class DifferentialRay:public Ray{
 	public:
+		DifferentialRay()=default;
 	DifferentialRay(const Ray & ray):Ray(ray),Differential(false){
 
 	}
