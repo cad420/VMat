@@ -811,7 +811,7 @@ namespace  vm
 	{
 		const auto top = std::tan(DegreesToRadians(vertcialAngle / 2)) * nearPlane;
 		const auto right = top * aspectRation;
-		SetFrustum(-right, right, top, -top, nearPlane, farPlane);
+		SetFrustum(-right, right, -top, top, nearPlane, farPlane);
 	}
 
 	inline 
