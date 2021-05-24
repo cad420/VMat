@@ -562,13 +562,13 @@ public:
 	template <typename U>
 	constexpr Vector3<T> operator*( const U &s ) const
 	{
-		assert(!IsNaN(s));
+		assert( !IsNaN( s ) );
 		return Vector3<T>( s * x, s * y, s * z );
 	}
 	template <typename U>
 	constexpr Vector3<T> &operator*=( const U &s )
 	{
-		assert(!IsNaN(s));
+		assert( !IsNaN( s ) );
 		x *= s;
 		y *= s;
 		z *= s;
@@ -1273,7 +1273,7 @@ public:
 	typename std::conditional<std::is_integral<T>::value, size_t, Float>::type Prod() const
 	{
 		using type = typename std::conditional<std::is_integral<T>::value, size_t, Float>::type;
-		return type( x ) * type( y ) * type( z ) *type(w);
+		return type( x ) * type( y ) * type( z ) * type( w );
 	}
 
 	constexpr Float LengthSquared() const
@@ -1583,12 +1583,12 @@ public:
 	Float tMax;
 	Float Time;
 	bool negDirection[ 3 ];
-	Ray()=default;
-	Ray( const Vector3f &d, const Point3f &o, Float t = ( std::numeric_limits<float>::max )() ,Float time = 0.f) :
+	Ray() = default;
+	Ray( const Vector3f &d, const Point3f &o, Float t = ( std::numeric_limits<float>::max )(), Float time = 0.f ) :
 	  o( o ),
 	  d( d ),
 	  tMax( t ),
-	  Time(time)
+	  Time( time )
 	{
 		negDirection[ 0 ] = d.x < 0;
 		negDirection[ 1 ] = d.y < 0;
@@ -1605,24 +1605,28 @@ public:
 	friend class BVHTreeAccelerator;
 };
 
-class DifferentialRay:public Ray{
-	public:
-		DifferentialRay()=default;
-	DifferentialRay(const Ray & ray):Ray(ray),Differential(false){
-
+class DifferentialRay : public Ray
+{
+public:
+	DifferentialRay() = default;
+	DifferentialRay( const Ray &ray ) :
+	  Ray( ray ), Differential( false )
+	{
 	}
-	DifferentialRay(const Vec3f & d ,const Point3f & o,Float t = ((std::numeric_limits<Float>::max)()),Float time = 0.f):Ray(d,o,t,time),Differential(false){
-		
+	DifferentialRay( const Vec3f &d, const Point3f &o, Float t = ( ( std::numeric_limits<Float>::max )() ), Float time = 0.f ) :
+	  Ray( d, o, t, time ), Differential( false )
+	{
 	}
-	void ScaleDifferentials(Float s){
-		Ox = o + (Ox - o) * s;
-		Oy = o + (Oy - o) * s;
-		Dx = d + (Dx - d) * s;
-		Dy = d + (Dy - d) * s;
+	void ScaleDifferentials( Float s )
+	{
+		Ox = o + ( Ox - o ) * s;
+		Oy = o + ( Oy - o ) * s;
+		Dx = d + ( Dx - d ) * s;
+		Dy = d + ( Dy - d ) * s;
 	}
 	bool Differential = false;
-	Point3f Ox,Oy;
-	Vec3f Dx,Dy;
+	Point3f Ox, Oy;
+	Vec3f Dx, Dy;
 };
 
 /**
@@ -1829,7 +1833,7 @@ public:
 			( std::max )( max.x, b.max.x ),
 			( std::max )( max.y, b.max.y ),
 			( std::max )( max.z, b.max.z )
-		};  // For fucking min/max defined in windows.h
+		};	// For fucking min/max defined in windows.h
 		return ret;
 	}
 
@@ -1859,10 +1863,134 @@ using Bound3i = Bound3<int>;
 using Bound2f = Bound2<Float>;
 using Bound2i = Bound2<int>;
 
-/*
-	 *  Arithmetic Functions
-	 */
+template<typename T> class Grid;
+
+class RayIter
+{
+	Vec3f deltaT;
+	Vec3f t;
+	Vec3f rayDirection;
+	Vec3f rayOrigGrid;
+	RayIter( const Vec3f &rayDirection, // normalized 
+			 const Vec3f &gridDimension,  //
+			 const Vec3f &cellDimension,
+			 const Vec3f &rayOrigGrid ) :
+	  rayDirection( rayDirection ),rayOrigGrid(rayOrigGrid)
+	{
+		if ( rayDirection[ 0 ] < 0 ) {
+			deltaT[ 0 ] = -gridDimension[ 0 ] / rayDirection[ 0 ];
+			t[ 0 ] = ( floor( rayOrigGrid[ 0 ] / cellDimension[ 0 ] ) * cellDimension[ 0 ] - rayOrigGrid[ 0 ] ) / rayDirection[ 0 ];
+		} else {
+			deltaT[ 0 ] = gridDimension[ 0 ] / rayDirection[ 0 ];
+			t[ 0 ] = ( ( floor( rayOrigGrid[ 0 ] / cellDimension[ 0 ] ) + 1 ) * cellDimension[ 0 ] - rayOrigGrid[ 0 ] ) / rayDirection[ 0 ];
+		}
+		if ( rayDirection[ 1 ] < 0 ) {
+			deltaT[ 1 ] = -gridDimension[ 1 ] / rayDirection[ 1 ];
+			t[ 1 ] = ( floor( rayOrigGrid[ 1 ] / cellDimension[ 1 ] ) * cellDimension[ 1 ] - rayOrigGrid[ 1 ] ) / rayDirection[ 1 ];
+		} else {
+			deltaT[ 1 ] = gridDimension[ 1 ] / rayDirection[ 1 ];
+			t[ 1 ] = ( ( floor( rayOrigGrid[ 1 ] / cellDimension[ 1 ] ) + 1 ) * cellDimension[ 1 ] - rayOrigGrid[ 1 ] ) / rayDirection[ 1 ];
+		}
+
+		if ( rayDirection[ 2 ] < 0 ) {
+			deltaT[ 2 ] = -gridDimension[ 2 ] / rayDirection[ 2 ];
+			t[ 2 ] = ( floor( rayOrigGrid[ 2 ] / cellDimension[ 2 ] ) * cellDimension[ 2 ] - rayOrigGrid[ 2 ] ) / rayDirection[ 2 ];
+		} else {
+			deltaT[ 2 ] = gridDimension[ 2 ] / rayDirection[ 2 ];
+			t[ 2 ] = ( ( floor( rayOrigGrid[ 2 ] / cellDimension[ 2 ] ) + 2 ) * cellDimension[ 2 ] - rayOrigGrid[ 2 ] ) / rayDirection[ 2 ];
+		}
+		CellIndex[ 0 ] = gridDimension[ 0 ];
+		CellIndex[ 1 ] = gridDimension[ 1 ];
+		CellIndex[ 2 ] = gridDimension[ 2 ];
+	}
+
+	inline void _next(){
+		if ( t[ 0 ] < t[ 1 ] ) {
+			tMin = t[ 0 ];				// current t, next intersection with cell along ray
+			t[ 0 ] += deltaT[ 0 ];	// increment, next crossing along x
+			if ( rayDirection[ 0 ] < 0 )
+				CellIndex[ 0 ] -= 1;
+			else
+				CellIndex[ 0 ] += 1;
+		} else if ( t[ 1 ] < t[ 2 ] ) {
+			tMin = t[ 1 ];
+			t[ 1 ] += deltaT[ 1 ];	// increment, next crossing along y
+			if ( rayDirection[ 1 ] < 0 )
+				CellIndex[ 1 ] -= 1;
+			else
+				CellIndex[ 1 ] += 1;
+		} else {
+			tMin = t[ 2 ];
+			t[ 2 ] += deltaT[ 2 ];	// increment, next crossing along z
+			if ( rayDirection[ 2 ] < 0 )
+				CellIndex[ 2 ] -= 1;
+			else
+				CellIndex[ 2 ] += 1;
+		}
+
+	}
+
+	RayIter empty(){
+	  RayIter iter;
+	  iter.tMin = iter.tMax ;
+	  return iter;
+	}
+
+	template<typename T>
+	friend class Grid;
+public:
+	float tMin = 0.0f, tMax = 0.0f;
+	Vec3i CellIndex = {};
+	RayIter() = default;
+	RayIter operator++( int )
+	{
+		RayIter itr = *this;
+		_next();
+		return itr;
+	}
+
+	RayIter &operator++()
+	{
+		_next();
+		return *this;
+	}
+
+	RayIter& Next(){
+		_next();
+		return *this;
+	}
+
+	bool Valid()const{
+	  return tMin < tMax;
+	}
+
+	Ray operator*()
+	{
+		return Ray();
+	}
+};
+
+template <typename T>
+class Grid
+{
+public:
+	Bound3<T> Bound;
+	Grid( const Bound3<T> &bound , const Vec3f & gridResolution) :
+	  Bound( bound )
+	{
+		Vec3f rayOrigin = {};
+		Vec3f cellDimension = ( bound.max - bound.min ) / gridResolution;
+		Vec3f rayOrigGrid = rayOrigin - bound.min;
+		Vec3f gridDimension;
+	}
+
+	RayIter BeginIter( const Ray &ray ) const
+	{
+		return RayIter();
+	};
+
+};
 
 }  // namespace vm
 
-#endif  // GEOMETRY_H
+#endif	// GEOMETRY_H

@@ -9,6 +9,11 @@ target_include_directories(VMat
 )
 target_compile_features(VMat INTERFACE cxx_std_14)
 
+#option(BUILD_VMAT_TEST "Set ON to build vmat test" ON)
+#if(BUILD_VMAT_TEST)
+add_subdirectory(test)
+#endif()
+
 option(VMAT_INSTALL "install VMat headers" ON)
 if (VMAT_INSTALL)
   install(
