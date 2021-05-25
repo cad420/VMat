@@ -332,3 +332,5 @@ __pycache__/
 
 build
 .vscode
+.cache
+.clangd

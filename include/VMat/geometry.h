@@ -72,6 +72,9 @@ using Nor3f = Normal3f;
 using Nor3i = Normal3i;
 
 template <typename T>
+class Grid;
+
+template <typename T>
 class Vector2
 {
 public:
@@ -562,13 +565,13 @@ public:
 	template <typename U>
 	constexpr Vector3<T> operator*( const U &s ) const
 	{
-		assert(!IsNaN(s));
+		assert( !IsNaN( s ) );
 		return Vector3<T>( s * x, s * y, s * z );
 	}
 	template <typename U>
 	constexpr Vector3<T> &operator*=( const U &s )
 	{
-		assert(!IsNaN(s));
+		assert( !IsNaN( s ) );
 		x *= s;
 		y *= s;
 		z *= s;
@@ -1273,7 +1276,7 @@ public:
 	typename std::conditional<std::is_integral<T>::value, size_t, Float>::type Prod() const
 	{
 		using type = typename std::conditional<std::is_integral<T>::value, size_t, Float>::type;
-		return type( x ) * type( y ) * type( z ) *type(w);
+		return type( x ) * type( y ) * type( z ) * type( w );
 	}
 
 	constexpr Float LengthSquared() const
@@ -1583,12 +1586,12 @@ public:
 	Float tMax;
 	Float Time;
 	bool negDirection[ 3 ];
-	Ray()=default;
-	Ray( const Vector3f &d, const Point3f &o, Float t = ( std::numeric_limits<float>::max )() ,Float time = 0.f) :
+	Ray() = default;
+	Ray( const Vector3f &d, const Point3f &o, Float t = ( std::numeric_limits<float>::max )(), Float time = 0.f ) :
 	  o( o ),
-	  d( d ),
+	  d( d.Normalized() ),
 	  tMax( t ),
-	  Time(time)
+	  Time( time )
 	{
 		negDirection[ 0 ] = d.x < 0;
 		negDirection[ 1 ] = d.y < 0;
@@ -1605,24 +1608,28 @@ public:
 	friend class BVHTreeAccelerator;
 };
 
-class DifferentialRay:public Ray{
-	public:
-		DifferentialRay()=default;
-	DifferentialRay(const Ray & ray):Ray(ray),Differential(false){
-
+class DifferentialRay : public Ray
+{
+public:
+	DifferentialRay() = default;
+	DifferentialRay( const Ray &ray ) :
+	  Ray( ray ), Differential( false )
+	{
 	}
-	DifferentialRay(const Vec3f & d ,const Point3f & o,Float t = ((std::numeric_limits<Float>::max)()),Float time = 0.f):Ray(d,o,t,time),Differential(false){
-		
+	DifferentialRay( const Vec3f &d, const Point3f &o, Float t = ( ( std::numeric_limits<Float>::max )() ), Float time = 0.f ) :
+	  Ray( d, o, t, time ), Differential( false )
+	{
 	}
-	void ScaleDifferentials(Float s){
-		Ox = o + (Ox - o) * s;
-		Oy = o + (Oy - o) * s;
-		Dx = d + (Dx - d) * s;
-		Dy = d + (Dy - d) * s;
+	void ScaleDifferentials( Float s )
+	{
+		Ox = o + ( Ox - o ) * s;
+		Oy = o + ( Oy - o ) * s;
+		Dx = d + ( Dx - d ) * s;
+		Dy = d + ( Dy - d ) * s;
 	}
 	bool Differential = false;
-	Point3f Ox,Oy;
-	Vec3f Dx,Dy;
+	Point3f Ox, Oy;
+	Vec3f Dx, Dy;
 };
 
 /**
@@ -1829,7 +1836,7 @@ public:
 			( std::max )( max.x, b.max.x ),
 			( std::max )( max.y, b.max.y ),
 			( std::max )( max.z, b.max.z )
-		};  // For fucking min/max defined in windows.h
+		};	// For fucking min/max defined in windows.h
 		return ret;
 	}
 
@@ -1851,6 +1858,8 @@ public:
 		return a;
 	}
 
+	Grid<T> GenGrid( const Vec3i &grid ) const;
+
 	friend class BVHTreeAccelerator;
 };
 
@@ -1859,10 +1868,163 @@ using Bound3i = Bound3<int>;
 using Bound2f = Bound2<Float>;
 using Bound2i = Bound2<int>;
 
-/*
-	 *  Arithmetic Functions
-	 */
+class RayIntervalIter
+{
+	Vec3f deltaT, accumT;
+	Vec3i grid;
+	bool negRayDir[ 3 ];
+	RayIntervalIter( const Vec3f &rayDirection,	 // normalized
+					 const Vec3f &cellDimension,
+					 const Vec3f &rayOrigGrid,
+					 const Point3i &initCellIndex,
+					 const Vec3i &grid,
+					 float &tMin ) :
+	  Pos( tMin ), grid( grid )
+	{
+		// The ray-grid intersection algorithm is modified from 
+		// https://www.scratchapixel.com/lessons/advanced-rendering/introduction-acceleration-structure/grid. See it for more detail
+		for ( int i = 0; i < 3; i++ ) {
+			if ( rayDirection[ i ] < 0 ) {
+				deltaT[ i ] = -cellDimension[ i ] / rayDirection[ i ];
+				accumT[ i ] = ( floor( rayOrigGrid[ i ] / cellDimension[ i ] ) * cellDimension[ i ] - rayOrigGrid[ i ] ) / rayDirection[ i ];
+				negRayDir[ i ] = true;
+			} else {
+				deltaT[ i ] = cellDimension[ i ] / rayDirection[ i ];
+				accumT[ i ] = ( ( floor( rayOrigGrid[ i ] / cellDimension[ i ] ) + 1 ) * cellDimension[ i ] - rayOrigGrid[ i ] ) / rayDirection[ i ];
+				negRayDir[ i ] = false;
+			}
+			accumT[i] += tMin; 
+			// we assume that rayOrigGrid is begin from the intersection of the ray and bound box, 
+			// so the global ray parameter is yield by adding the offset onto the local ray parameters
+			assert( accumT[ i ] >= 0 );
+			assert( deltaT[ i ] >= 0 );
+		}
+		CellIndex = initCellIndex;
+	}
+
+	inline void _next()
+	{
+		int mini[ 3 ];
+		int cnt = 0;
+		if ( accumT[ 0 ] < accumT[ 1 ] ) {
+			if ( accumT[ 0 ] < accumT[ 2 ] ) {
+				mini[ cnt++ ] = 0;	// 0
+			} else {				// 2<=0<1
+				mini[ cnt++ ] = 2;	// 2
+				if ( accumT[ 2 ] == accumT[ 0 ] ) {
+					mini[ cnt++ ] = 0;	// 2, 0
+				}
+			}
+		} else {  // 1<=0
+			if ( accumT[ 1 ] < accumT[ 2 ] ) {
+				mini[ cnt++ ] = 1;	// 1
+				if ( accumT[ 0 ] == accumT[ 1 ] ) {
+					mini[ cnt++ ] = 0;	// 1, 0
+				}
+			} else {  // 2<=1<=0,
+				mini[ cnt++ ] = 2;
+				if ( accumT[ 2 ] == accumT[ 1 ] ) {
+					mini[ cnt++ ] = 1;	// 1,2
+					if ( accumT[ 1 ] == accumT[ 0 ] ) {
+						mini[ cnt++ ] = 0;	// 2, 1, 0
+					}
+				}
+			}
+		}
+		assert(cnt != 0);
+		for ( int c = 0; c < cnt; c++ ) {
+			auto i = mini[c];
+			Pos = accumT[i];
+			accumT[ i ] += deltaT[ i ];
+			if ( negRayDir[ i ] )
+				CellIndex[ i ] -= 1;
+			else
+				CellIndex[ i ] += 1;
+		}
+	}
+
+	RayIntervalIter empty()
+	{
+		RayIntervalIter iter;
+		return iter;
+	}
+
+	template <typename T>
+	friend class Grid;
+
+public:
+	float Pos = 0.0f;
+	Point3i CellIndex = {};
+	RayIntervalIter() = default;
+	RayIntervalIter operator++( int )
+	{
+		RayIntervalIter itr = *this;
+		_next();
+		return itr;
+	}
+
+	RayIntervalIter &operator++()
+	{
+		_next();
+		return *this;
+	}
+
+	RayIntervalIter &Next()
+	{
+		_next();
+		return *this;
+	}
+
+	bool Valid() const
+	{
+		for ( int i = 0; i < 3; i++ ) {
+			if ( CellIndex[ i ] < 0 || CellIndex[ i ] >= grid[ i ] ) {
+				return false;
+			}
+		}
+		return true;
+	}
+};
+
+template <typename T>
+class Grid
+{
+public:
+	Bound3<T> Bound;
+	Vec3f Cell;
+	Vec3i GridDimension;
+	Grid( const Bound3<T> &bound, const Vec3i &grid ) :
+	  Bound( bound ), GridDimension( grid )
+	{
+		auto diag = Vec3f( bound.Diagonal() );
+		Cell = Vec3f( diag.x / grid.x, diag.y / grid.y, diag.z / grid.z );
+	}
+
+	RayIntervalIter IntersectWith( const Ray &ray ) const
+	{
+		float hit0, hit1;
+		if ( Bound.Intersect( ray, &hit0, &hit1 ) ) {
+			const auto hit = ray( hit0 + 0.001 );
+			const auto v = hit - Vec3f( Bound.min );
+			Vec3f rayOrigGrid = hit - Point3f( Bound.min );
+			const Point3i initCell( v.x / Cell.x, v.y / Cell.y, v.z / Cell.z );
+			return RayIntervalIter( ray.Direction().Normalized(), Cell, rayOrigGrid, initCell, GridDimension, hit0 );
+		}
+		return RayIntervalIter();
+	};
+
+	void IntersectWith(const Ray & ray, Point3i*res, int* count)const{
+
+	}
+
+};
+
+template <typename T>
+Grid<T> Bound3<T>::GenGrid( const Vec3i &grid ) const
+{
+	return Grid<T>( *this, grid );
+}
 
 }  // namespace vm
 
-#endif  // GEOMETRY_H
+#endif	// GEOMETRY_H
