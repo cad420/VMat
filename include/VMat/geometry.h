@@ -71,6 +71,9 @@ using Vec4i = Vector4i;
 using Nor3f = Normal3f;
 using Nor3i = Normal3i;
 
+
+template<typename T> class Grid;
+
 template <typename T>
 class Vector2
 {
@@ -1855,6 +1858,8 @@ public:
 		return a;
 	}
 
+	Grid<T> GenGrid(const Vec3i & grid)const;
+
 	friend class BVHTreeAccelerator;
 };
 
@@ -1863,15 +1868,14 @@ using Bound3i = Bound3<int>;
 using Bound2f = Bound2<Float>;
 using Bound2i = Bound2<int>;
 
-template<typename T> class Grid;
 
-class RayIter
+class RayIntervalIter
 {
 	Vec3f deltaT;
 	Vec3f t;
 	Vec3f rayDirection;
 	Vec3f rayOrigGrid;
-	RayIter( const Vec3f &rayDirection, // normalized 
+	RayIntervalIter( const Vec3f &rayDirection, // normalized 
 			 const Vec3f &gridDimension,  //
 			 const Vec3f &cellDimension,
 			 const Vec3f &rayOrigGrid ) :
@@ -1930,8 +1934,8 @@ class RayIter
 
 	}
 
-	RayIter empty(){
-	  RayIter iter;
+	RayIntervalIter empty(){
+	  RayIntervalIter iter;
 	  iter.tMin = iter.tMax ;
 	  return iter;
 	}
@@ -1940,22 +1944,22 @@ class RayIter
 	friend class Grid;
 public:
 	float tMin = 0.0f, tMax = 0.0f;
-	Vec3i CellIndex = {};
-	RayIter() = default;
-	RayIter operator++( int )
+	Point3i CellIndex = {};
+	RayIntervalIter() = default;
+	RayIntervalIter operator++( int )
 	{
-		RayIter itr = *this;
+		RayIntervalIter itr = *this;
 		_next();
 		return itr;
 	}
 
-	RayIter &operator++()
+	RayIntervalIter &operator++()
 	{
 		_next();
 		return *this;
 	}
 
-	RayIter& Next(){
+	RayIntervalIter& Next(){
 		_next();
 		return *this;
 	}
@@ -1964,10 +1968,6 @@ public:
 	  return tMin < tMax;
 	}
 
-	Ray operator*()
-	{
-		return Ray();
-	}
 };
 
 template <typename T>
@@ -1978,18 +1978,31 @@ public:
 	Grid( const Bound3<T> &bound , const Vec3f & gridResolution) :
 	  Bound( bound )
 	{
-		Vec3f rayOrigin = {};
+		Point3f rayOrigin = {};
 		Vec3f cellDimension = ( bound.max - bound.min ) / gridResolution;
-		Vec3f rayOrigGrid = rayOrigin - bound.min;
+		Vec3f rayOrigGrid = rayOrigin - Point3f(bound.min);
 		Vec3f gridDimension;
 	}
 
-	RayIter BeginIter( const Ray &ray ) const
+	Grid( const Bound3<T> &bound , const Vec3i & grid) :
+	  Bound( bound )
 	{
-		return RayIter();
-	};
+		Point3f rayOrigin = {};
+		Vec3f cellDimension = Vec3f(grid);
+		Vec3f rayOrigGrid = rayOrigin - Point3f(bound.min);
+		Vec3f gridDimension;
+	}
 
+	RayIntervalIter BeginIter( const Ray &ray ) const
+	{
+		return RayIntervalIter();
+	};
 };
+
+template<typename T>
+Grid<T> Bound3<T>::GenGrid(const Vec3i & grid)const{
+	return Grid<T>(*this,grid);
+}
 
 }  // namespace vm
 
