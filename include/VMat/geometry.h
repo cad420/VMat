@@ -71,8 +71,8 @@ using Vec4i = Vector4i;
 using Nor3f = Normal3f;
 using Nor3i = Normal3i;
 
-
-template<typename T> class Grid;
+template <typename T>
+class Grid;
 
 template <typename T>
 class Vector2
@@ -1589,7 +1589,7 @@ public:
 	Ray() = default;
 	Ray( const Vector3f &d, const Point3f &o, Float t = ( std::numeric_limits<float>::max )(), Float time = 0.f ) :
 	  o( o ),
-	  d( d ),
+	  d( d.Normalized() ),
 	  tMax( t ),
 	  Time( time )
 	{
@@ -1858,7 +1858,7 @@ public:
 		return a;
 	}
 
-	Grid<T> GenGrid(const Vec3i & grid)const;
+	Grid<T> GenGrid( const Vec3i &grid ) const;
 
 	friend class BVHTreeAccelerator;
 };
@@ -1868,82 +1868,92 @@ using Bound3i = Bound3<int>;
 using Bound2f = Bound2<Float>;
 using Bound2i = Bound2<int>;
 
-
 class RayIntervalIter
 {
-	Vec3f deltaT;
-	Vec3f t;
-	Vec3f rayDirection;
-	Vec3f rayOrigGrid;
-	RayIntervalIter( const Vec3f &rayDirection, // normalized 
-			 const Vec3f &gridDimension,  //
-			 const Vec3f &cellDimension,
-			 const Vec3f &rayOrigGrid ) :
-	  rayDirection( rayDirection ),rayOrigGrid(rayOrigGrid)
+	Vec3f deltaT, accumT;
+	Vec3i grid;
+	bool negRayDir[ 3 ];
+	RayIntervalIter( const Vec3f &rayDirection,	 // normalized
+					 const Vec3f &cellDimension,
+					 const Vec3f &rayOrigGrid,
+					 const Point3i &initCellIndex,
+					 const Vec3i &grid,
+					 float &tMin ) :
+	  Pos( tMin ), grid( grid )
 	{
-		if ( rayDirection[ 0 ] < 0 ) {
-			deltaT[ 0 ] = -gridDimension[ 0 ] / rayDirection[ 0 ];
-			t[ 0 ] = ( floor( rayOrigGrid[ 0 ] / cellDimension[ 0 ] ) * cellDimension[ 0 ] - rayOrigGrid[ 0 ] ) / rayDirection[ 0 ];
-		} else {
-			deltaT[ 0 ] = gridDimension[ 0 ] / rayDirection[ 0 ];
-			t[ 0 ] = ( ( floor( rayOrigGrid[ 0 ] / cellDimension[ 0 ] ) + 1 ) * cellDimension[ 0 ] - rayOrigGrid[ 0 ] ) / rayDirection[ 0 ];
+		// The ray-grid intersection algorithm is modified from 
+		// https://www.scratchapixel.com/lessons/advanced-rendering/introduction-acceleration-structure/grid. See it for more detail
+		for ( int i = 0; i < 3; i++ ) {
+			if ( rayDirection[ i ] < 0 ) {
+				deltaT[ i ] = -cellDimension[ i ] / rayDirection[ i ];
+				accumT[ i ] = ( floor( rayOrigGrid[ i ] / cellDimension[ i ] ) * cellDimension[ i ] - rayOrigGrid[ i ] ) / rayDirection[ i ];
+				negRayDir[ i ] = true;
+			} else {
+				deltaT[ i ] = cellDimension[ i ] / rayDirection[ i ];
+				accumT[ i ] = ( ( floor( rayOrigGrid[ i ] / cellDimension[ i ] ) + 1 ) * cellDimension[ i ] - rayOrigGrid[ i ] ) / rayDirection[ i ];
+				negRayDir[ i ] = false;
+			}
+			accumT[i] += tMin; 
+			// we assume that rayOrigGrid is begin from the intersection of the ray and bound box, 
+			// so the global ray parameter is yield by adding the offset onto the local ray parameters
+			assert( accumT[ i ] >= 0 );
+			assert( deltaT[ i ] >= 0 );
 		}
-		if ( rayDirection[ 1 ] < 0 ) {
-			deltaT[ 1 ] = -gridDimension[ 1 ] / rayDirection[ 1 ];
-			t[ 1 ] = ( floor( rayOrigGrid[ 1 ] / cellDimension[ 1 ] ) * cellDimension[ 1 ] - rayOrigGrid[ 1 ] ) / rayDirection[ 1 ];
-		} else {
-			deltaT[ 1 ] = gridDimension[ 1 ] / rayDirection[ 1 ];
-			t[ 1 ] = ( ( floor( rayOrigGrid[ 1 ] / cellDimension[ 1 ] ) + 1 ) * cellDimension[ 1 ] - rayOrigGrid[ 1 ] ) / rayDirection[ 1 ];
-		}
-
-		if ( rayDirection[ 2 ] < 0 ) {
-			deltaT[ 2 ] = -gridDimension[ 2 ] / rayDirection[ 2 ];
-			t[ 2 ] = ( floor( rayOrigGrid[ 2 ] / cellDimension[ 2 ] ) * cellDimension[ 2 ] - rayOrigGrid[ 2 ] ) / rayDirection[ 2 ];
-		} else {
-			deltaT[ 2 ] = gridDimension[ 2 ] / rayDirection[ 2 ];
-			t[ 2 ] = ( ( floor( rayOrigGrid[ 2 ] / cellDimension[ 2 ] ) + 2 ) * cellDimension[ 2 ] - rayOrigGrid[ 2 ] ) / rayDirection[ 2 ];
-		}
-		CellIndex[ 0 ] = gridDimension[ 0 ];
-		CellIndex[ 1 ] = gridDimension[ 1 ];
-		CellIndex[ 2 ] = gridDimension[ 2 ];
+		CellIndex = initCellIndex;
 	}
 
-	inline void _next(){
-		if ( t[ 0 ] < t[ 1 ] ) {
-			tMin = t[ 0 ];				// current t, next intersection with cell along ray
-			t[ 0 ] += deltaT[ 0 ];	// increment, next crossing along x
-			if ( rayDirection[ 0 ] < 0 )
-				CellIndex[ 0 ] -= 1;
-			else
-				CellIndex[ 0 ] += 1;
-		} else if ( t[ 1 ] < t[ 2 ] ) {
-			tMin = t[ 1 ];
-			t[ 1 ] += deltaT[ 1 ];	// increment, next crossing along y
-			if ( rayDirection[ 1 ] < 0 )
-				CellIndex[ 1 ] -= 1;
-			else
-				CellIndex[ 1 ] += 1;
-		} else {
-			tMin = t[ 2 ];
-			t[ 2 ] += deltaT[ 2 ];	// increment, next crossing along z
-			if ( rayDirection[ 2 ] < 0 )
-				CellIndex[ 2 ] -= 1;
-			else
-				CellIndex[ 2 ] += 1;
+	inline void _next()
+	{
+		int mini[ 3 ];
+		int cnt = 0;
+		if ( accumT[ 0 ] < accumT[ 1 ] ) {
+			if ( accumT[ 0 ] < accumT[ 2 ] ) {
+				mini[ cnt++ ] = 0;	// 0
+			} else {				// 2<=0<1
+				mini[ cnt++ ] = 2;	// 2
+				if ( accumT[ 2 ] == accumT[ 0 ] ) {
+					mini[ cnt++ ] = 0;	// 2, 0
+				}
+			}
+		} else {  // 1<=0
+			if ( accumT[ 1 ] < accumT[ 2 ] ) {
+				mini[ cnt++ ] = 1;	// 1
+				if ( accumT[ 0 ] == accumT[ 1 ] ) {
+					mini[ cnt++ ] = 0;	// 1, 0
+				}
+			} else {  // 2<=1<=0,
+				mini[ cnt++ ] = 2;
+				if ( accumT[ 2 ] == accumT[ 1 ] ) {
+					mini[ cnt++ ] = 1;	// 1,2
+					if ( accumT[ 1 ] == accumT[ 0 ] ) {
+						mini[ cnt++ ] = 0;	// 2, 1, 0
+					}
+				}
+			}
 		}
-
+		assert(cnt != 0);
+		for ( int c = 0; c < cnt; c++ ) {
+			auto i = mini[c];
+			Pos = accumT[i];
+			accumT[ i ] += deltaT[ i ];
+			if ( negRayDir[ i ] )
+				CellIndex[ i ] -= 1;
+			else
+				CellIndex[ i ] += 1;
+		}
 	}
 
-	RayIntervalIter empty(){
-	  RayIntervalIter iter;
-	  iter.tMin = iter.tMax ;
-	  return iter;
+	RayIntervalIter empty()
+	{
+		RayIntervalIter iter;
+		return iter;
 	}
 
-	template<typename T>
+	template <typename T>
 	friend class Grid;
+
 public:
-	float tMin = 0.0f, tMax = 0.0f;
+	float Pos = 0.0f;
 	Point3i CellIndex = {};
 	RayIntervalIter() = default;
 	RayIntervalIter operator++( int )
@@ -1959,15 +1969,21 @@ public:
 		return *this;
 	}
 
-	RayIntervalIter& Next(){
+	RayIntervalIter &Next()
+	{
 		_next();
 		return *this;
 	}
 
-	bool Valid()const{
-	  return tMin < tMax;
+	bool Valid() const
+	{
+		for ( int i = 0; i < 3; i++ ) {
+			if ( CellIndex[ i ] < 0 || CellIndex[ i ] >= grid[ i ] ) {
+				return false;
+			}
+		}
+		return true;
 	}
-
 };
 
 template <typename T>
@@ -1975,33 +1991,38 @@ class Grid
 {
 public:
 	Bound3<T> Bound;
-	Grid( const Bound3<T> &bound , const Vec3f & gridResolution) :
-	  Bound( bound )
+	Vec3f Cell;
+	Vec3i GridDimension;
+	Grid( const Bound3<T> &bound, const Vec3i &grid ) :
+	  Bound( bound ), GridDimension( grid )
 	{
-		Point3f rayOrigin = {};
-		Vec3f cellDimension = ( bound.max - bound.min ) / gridResolution;
-		Vec3f rayOrigGrid = rayOrigin - Point3f(bound.min);
-		Vec3f gridDimension;
+		auto diag = Vec3f( bound.Diagonal() );
+		Cell = Vec3f( diag.x / grid.x, diag.y / grid.y, diag.z / grid.z );
 	}
 
-	Grid( const Bound3<T> &bound , const Vec3i & grid) :
-	  Bound( bound )
+	RayIntervalIter IntersectWith( const Ray &ray ) const
 	{
-		Point3f rayOrigin = {};
-		Vec3f cellDimension = Vec3f(grid);
-		Vec3f rayOrigGrid = rayOrigin - Point3f(bound.min);
-		Vec3f gridDimension;
-	}
-
-	RayIntervalIter BeginIter( const Ray &ray ) const
-	{
+		float hit0, hit1;
+		if ( Bound.Intersect( ray, &hit0, &hit1 ) ) {
+			const auto hit = ray( hit0 + 0.001 );
+			const auto v = hit - Vec3f( Bound.min );
+			Vec3f rayOrigGrid = hit - Point3f( Bound.min );
+			const Point3i initCell( v.x / Cell.x, v.y / Cell.y, v.z / Cell.z );
+			return RayIntervalIter( ray.Direction().Normalized(), Cell, rayOrigGrid, initCell, GridDimension, hit0 );
+		}
 		return RayIntervalIter();
 	};
+
+	void IntersectWith(const Ray & ray, Point3i*res, int* count)const{
+
+	}
+
 };
 
-template<typename T>
-Grid<T> Bound3<T>::GenGrid(const Vec3i & grid)const{
-	return Grid<T>(*this,grid);
+template <typename T>
+Grid<T> Bound3<T>::GenGrid( const Vec3i &grid ) const
+{
+	return Grid<T>( *this, grid );
 }
 
 }  // namespace vm
