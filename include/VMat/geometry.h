@@ -1204,11 +1204,12 @@ public:
 		return { x * v.x, y * v.y, z * v.z, w * v.w };
 	}
 
-	constexpr Vector3<T> operator*=( const Vector3<T> &v )
+	constexpr Vector4<T>& operator*=( const Vector4<T> &v )
 	{
 		x *= v.x;
 		y *= v.y;
 		z *= v.z;
+		w *= v.w;
 		return *this;
 	}
 
@@ -1327,7 +1328,7 @@ std::ostream &operator<<( std::ostream &os, const Vector4<T> &v )
 }
 
 template <typename T>
-constexpr Vector3<T> operator*( Float s, const Vector4<T> &v )
+constexpr Vector4<T> operator*( Float s, const Vector4<T> &v )
 {
 	return v * s;
 }
