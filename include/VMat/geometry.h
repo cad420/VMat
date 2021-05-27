@@ -1879,8 +1879,9 @@ class RayIntervalIter
 					 const Vec3f &rayOrigGrid,
 					 const Point3i &initCellIndex,
 					 const Vec3i &grid,
-					 float &tMin ) :
-	  Pos( tMin ), grid( grid )
+					 float &tMin ,
+					 float tMax) :
+	  Pos( tMin ), grid( grid ),Max(tMax)
 	{
 		// The ray-grid intersection algorithm is modified from 
 		// https://www.scratchapixel.com/lessons/advanced-rendering/introduction-acceleration-structure/grid. See it for more detail
@@ -1954,7 +1955,7 @@ class RayIntervalIter
 	friend class Grid;
 
 public:
-	float Pos = 0.0f;
+	float Pos = 0.0f, Max;
 	Point3i CellIndex = {};
 	RayIntervalIter() = default;
 	RayIntervalIter operator++( int )
@@ -2009,7 +2010,7 @@ public:
 			const auto v = hit - Vec3f( Bound.min );
 			Vec3f rayOrigGrid = hit - Point3f( Bound.min );
 			const Point3i initCell( v.x / Cell.x, v.y / Cell.y, v.z / Cell.z );
-			return RayIntervalIter( ray.Direction().Normalized(), Cell, rayOrigGrid, initCell, GridDimension, hit0 );
+			return RayIntervalIter( ray.Direction().Normalized(), Cell, rayOrigGrid, initCell, GridDimension, hit0, hit1 );
 		}
 		return RayIntervalIter();
 	};
